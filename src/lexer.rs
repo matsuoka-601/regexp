@@ -1,24 +1,45 @@
 #[derive(Debug, PartialEq)]
-pub enum Token<'a>{
-    CHARACTER(&'a str),
+pub enum Token{
+    CHARACTER(char),
     UNION,
     STAR,
     LPAREN,
     RPAREN,
-    EOF,
 }
 
-pub struct Lexer<'a>(&'a str);
+pub struct Lexer<'a> {
+    input: &'a str,
+}
 
 impl<'a> Lexer<'a>{
     pub fn new(s: &'a str) -> Self {
-        Lexer(s)
+        Lexer { input: s }
     }
 
-    pub fn tokenize(&self) -> Result<Vec<Token>, ()>{
-        let mut ret = Vec::new();
-        ret.push(Token::CHARACTER("a"));
-        Ok(ret)
+    pub fn tokenize(&self) -> Vec<Token> {
+        let mut ret = Vec::new(); 
+
+        let mut iter = self.input.chars().peekable();
+        while let Some(c) = iter.next() {
+            if c == '\\' {
+                ret.push(Token::CHARACTER(*iter.peek().unwrap()));
+                iter.next();
+                continue;
+            }
+            ret.push(self.match_char(c));
+        }
+
+        ret
+    }
+
+    fn match_char(&self, c: char) -> Token {
+        match c {
+            '(' => { return Token::LPAREN; }
+            ')' => { return Token::RPAREN; }
+            '*' => { return Token::STAR; }
+            '|' => { return Token::UNION; }
+            _ => { return Token::CHARACTER(c); }
+        }
     }
 }
 
@@ -28,16 +49,29 @@ mod tests {
 
     #[test]
     fn test(){
-        let l = Lexer::new("a(b|c)d");
-        let v = l.tokenize().unwrap();
-        let ans = vec![Token::CHARACTER("a"),
+        check_tokenize(r"a(b|c)d", 
+                        vec![Token::CHARACTER('a'),
                         Token::LPAREN,
-                        Token::CHARACTER("b"),
+                        Token::CHARACTER('b'),
                         Token::UNION,
-                        Token::CHARACTER("c"),
+                        Token::CHARACTER('c'),
                         Token::RPAREN,
-                        Token::CHARACTER("d"),
-                        Token::EOF];
-        assert_eq!(v[0], ans[0]);
+                        Token::CHARACTER('d')]);
+
+        check_tokenize(r"\*\(\\a\\", 
+                        vec![Token::CHARACTER('*'),
+                            Token::CHARACTER('('),
+                            Token::CHARACTER('\\'),
+                            Token::CHARACTER('a'),
+                            Token::CHARACTER('\\')]);
+        
+        
+    }
+
+    fn check_tokenize(input: &str, ans: Vec<Token>) {
+        let l = Lexer::new(input);
+        let v = l.tokenize();
+        assert_eq!(v, ans);
+        println!("{:?}", v);
     }
 }
