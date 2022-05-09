@@ -1,5 +1,5 @@
 use crate::lexer::Token;
-use crate::ast::{Ast, Expr, SubExpr, Seq, Star, Factor};
+use crate::ast::{Ast, Expr, SubExpr, Seq, Rep, Factor};
 
 pub enum ParseError {
     UnExpectedTokenError(Token, Token),
@@ -42,10 +42,17 @@ impl Parser {
 
     }
 
-    fn star(&self) -> Result<Star, ParseError> {
+    fn rep(&self) -> Result<Rep, ParseError> {
         let factor = self.factor()?;
-        let is_repeat = self.skip_if(Token::STAR);
-        let ret = Star { factor: Box::new(factor), is_repeat: is_repeat };
+        let op;
+        match self.cur_token() {
+            Token::PLUS | Token::QUESTION | Token::STAR => { 
+                op = Some(self.cur_token());
+                self.skip();
+            }
+            _ => { op = None; }
+        }
+        let ret = Rep { factor: Box::new(factor), op: op };
         Ok(ret)
     }
 
@@ -89,9 +96,5 @@ impl Parser {
 
     fn cur_token(&self) -> Token {
         self.tokens[self.pos]
-    }
-
-    fn is_cur_token(&self, token: Token) -> bool {
-        self.cur_token() == token
     }
 }

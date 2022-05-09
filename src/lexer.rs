@@ -3,6 +3,8 @@ pub enum Token{
     CHARACTER(char),
     UNION,
     STAR,
+    PLUS,
+    QUESTION,
     LPAREN,
     RPAREN,
     EOF,
@@ -38,6 +40,8 @@ impl<'a> Lexer<'a>{
             '(' => { return Token::LPAREN; }
             ')' => { return Token::RPAREN; }
             '*' => { return Token::STAR; }
+            '+' => { return Token::PLUS; }
+            '?' => { return Token::QUESTION; }
             '|' => { return Token::UNION; }
             _ => { return Token::CHARACTER(c); }
         }

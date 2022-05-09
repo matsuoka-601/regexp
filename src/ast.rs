@@ -1,3 +1,5 @@
+use crate::lexer::Token;
+
 pub struct Ast {
     expr: Box<Expr>
 }
@@ -19,9 +21,9 @@ pub struct SubSeq {
 
 }
 
-pub struct Star {
+pub struct Rep {
     factor: Box<Factor>,
-    is_repeat: bool
+    op: Option<Token>
 }
 
 pub struct Factor {
