@@ -68,7 +68,7 @@ impl Parser {
         let mut op = None;
         match self.cur_token() {
             Token::PLUS | Token::QUESTION | Token::STAR => { 
-                op = Some(self.cur_token());
+                op = Some(self.cur_token().clone());
                 self.skip();
             }
             _ => {}
@@ -87,10 +87,10 @@ impl Parser {
                 self.skip_expect(Token::RPAREN)?;
             }
             Token::CHARACTER(c) => { 
-                ch = Some(c);
+                ch = Some(*c);
                 self.skip();
             }
-            other => { return Err(ParseError::UnMatchedTokenError(other)); }
+            other => { return Err(ParseError::UnMatchedTokenError(other.clone())); }
         }
         let ret = Factor { subexpr: subexpr, ch: ch };
         Ok(ret)
@@ -99,15 +99,15 @@ impl Parser {
 
 impl Parser {
     fn skip_expect(&mut self, expected: Token) -> Result<(), ParseError> {
-        if self.cur_token() == expected { self.skip(); return Ok(()); }
-        else { return Err(ParseError::UnExpectedTokenError(expected, self.cur_token())); }
+        if *self.cur_token() == expected { self.skip(); return Ok(()); }
+        else { return Err(ParseError::UnExpectedTokenError(expected, self.cur_token().clone())); }
     }
 
     fn skip(&mut self) {
         self.pos += 1;
     }
 
-    fn cur_token(&self) -> Token {
-        self.tokens[self.pos]
+    fn cur_token(&self) -> &Token {
+        &self.tokens[self.pos]
     }
 }
