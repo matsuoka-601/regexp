@@ -1,5 +1,5 @@
 use crate::lexer::Token;
-use crate::ast::{Ast, Expr, SubExpr, Seq, Rep, Factor};
+use crate::ast::{Ast, Expr, SubExpr, SubSeq, Seq, Rep, Factor};
 
 pub enum ParseError {
     UnExpectedTokenError(Token, Token),
@@ -16,81 +16,94 @@ impl Parser {
         Parser { tokens: input, pos: 0 }
     }
 
-    pub fn parse(&self) -> Result<Ast, ParseError>{
+    pub fn parse(&mut self) -> Result<Ast, ParseError>{
         let expr = self.expr()?;
         let ret = Ast { expr: Box::new(expr) };
         Ok(ret)
     }
 
-    fn expr(&self) -> Result<Expr, ParseError>{
+    fn expr(&mut self) -> Result<Expr, ParseError>{
         let subexpr = self.subexpr()?;
         let ret = Expr { subexpr: Box::new(subexpr) };
         self.skip_expect(Token::EOF)?;
         Ok(ret)
     }
 
-    fn subexpr(&self) -> Result<SubExpr, ParseError> {
-        let seq = self.seq()?;
-        
+    fn subexpr(&mut self) -> Result<SubExpr, ParseError> {
+        let seq = Box::new(self.seq()?);
+        let mut subexpr = None;
+        match self.cur_token() {
+            Token::UNION => { self.skip(); subexpr = Some(Box::new(self.subexpr()?)); }
+            _ => {}
+        }
+        let ret = SubExpr { seq: seq, subexpr: subexpr };
+        Ok(ret)
     }
 
-    fn seq(&self) -> Result<Seq, ParseError> {
-        
+    fn seq(&mut self) -> Result<Seq, ParseError> {
+        let mut subseq = None;
+        match self.cur_token() {
+            Token::LPAREN | Token::CHARACTER(_) => { 
+                subseq = Some(Box::new(self.subseq()?)); 
+            }
+            _ => {}
+        }
+        let ret = Seq { subseq: subseq };
+        Ok(ret)
     }
 
-    fn subseq(&self) -> Result<SubSeq, ParseError> {
-
+    fn subseq(&mut self) -> Result<SubSeq, ParseError> {
+        let rep = Box::new(self.rep()?);
+        let mut subseq = None;
+        match self.cur_token() {
+            Token::LPAREN | Token::CHARACTER(_) => { subseq = Some(Box::new(self.subseq()?)); }
+            _ => {}
+        }
+        let ret = SubSeq { rep: rep, subseq: subseq };
+        Ok(ret)
     }
 
-    fn rep(&self) -> Result<Rep, ParseError> {
-        let factor = self.factor()?;
-        let op;
+    fn rep(&mut self) -> Result<Rep, ParseError> {
+        let factor = Box::new(self.factor()?);
+        let mut op = None;
         match self.cur_token() {
             Token::PLUS | Token::QUESTION | Token::STAR => { 
                 op = Some(self.cur_token());
                 self.skip();
             }
-            _ => { op = None; }
+            _ => {}
         }
-        let ret = Rep { factor: Box::new(factor), op: op };
+        let ret = Rep { factor: factor, op: op };
         Ok(ret)
     }
 
-    fn factor(&self) -> Result<Factor, ParseError> {
-        let ret = Factor { subexpr: None, ch: None };
+    fn factor(&mut self) -> Result<Factor, ParseError> {
+        let mut subexpr = None;
+        let mut ch = None;
         match self.cur_token() {
             Token::LPAREN => {
                 self.skip_expect(Token::LPAREN)?;
-                ret.subexpr = Some(Box::new(self.subexpr()?));
+                subexpr = Some(Box::new(self.subexpr()?));
                 self.skip_expect(Token::RPAREN)?;
             }
             Token::CHARACTER(c) => { 
-                ret.ch = Some(c);
+                ch = Some(c);
                 self.skip();
             }
             other => { return Err(ParseError::UnMatchedTokenError(other)); }
         }
+        let ret = Factor { subexpr: subexpr, ch: ch };
         Ok(ret)
     }
 }
 
 impl Parser {
-    fn skip_expect(&self, expected: Token) -> Result<(), ParseError> {
-        match self.cur_token() {
-            expected => { self.skip(); }
-            other => { return Err(ParseError::UnExpectedTokenError(expected, other)); }
-        }
-        Ok(())
+    fn skip_expect(&mut self, expected: Token) -> Result<(), ParseError> {
+        if self.cur_token() == expected { self.skip(); return Ok(()); }
+        else { return Err(ParseError::UnExpectedTokenError(expected, self.cur_token())); }
     }
 
-    fn skip_if(&self, token: Token) -> bool {
-        match self.cur_token() == token {
-            true => { self.skip(); return true; }
-            false => { return false; }
-        }
-    }
-
-    fn skip(&self) {
+    fn skip(&mut self) {
         self.pos += 1;
     }
 
