@@ -44,11 +44,7 @@ impl Parser {
 
     fn star(&self) -> Result<Star, ParseError> {
         let factor = self.factor()?;
-        let is_repeat;
-        match self.is_cur_token(Token::STAR) {
-            true => { is_repeat = true; self.skip(); }
-            false => { is_repeat = false; }
-        }
+        let is_repeat = self.skip_if(Token::STAR);
         let ret = Star { factor: Box::new(factor), is_repeat: is_repeat };
         Ok(ret)
     }
@@ -78,6 +74,13 @@ impl Parser {
             other => { return Err(ParseError::UnExpectedTokenError(expected, other)); }
         }
         Ok(())
+    }
+
+    fn skip_if(&self, token: Token) -> bool {
+        match self.cur_token() == token {
+            true => { self.skip(); return true; }
+            false => { return false; }
+        }
     }
 
     fn skip(&self) {
