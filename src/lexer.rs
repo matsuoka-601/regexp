@@ -5,6 +5,7 @@ pub enum Token{
     STAR,
     LPAREN,
     RPAREN,
+    EOF,
 }
 
 pub struct Lexer<'a> {
