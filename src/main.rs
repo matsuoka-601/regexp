@@ -1,5 +1,5 @@
 use std::env;
-use regexp::{lexer, parser};
+use regexp::{lexer, parser, nfa};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -9,7 +9,7 @@ fn main() {
     let mut p = parser::Parser::new(tokens);
     let ast = p.parse();
 
-    
+    let nfa = nfa::NFA::new(ast);
 
     // println!("{:?}", l.tokenize());
     // println!("{:?}", &args[1]);
