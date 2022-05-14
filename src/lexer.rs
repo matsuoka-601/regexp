@@ -31,6 +31,7 @@ impl<'a> Lexer<'a>{
             }
             ret.push(self.match_char(c));
         }
+        ret.push(Token::EOF);
 
         ret
     }
