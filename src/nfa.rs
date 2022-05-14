@@ -1,4 +1,4 @@
-use crate::ast::Ast;
+use crate::ast::AstNode;
 use std::collections::{HashMap, BTreeSet};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -19,10 +19,11 @@ pub struct NFA {
 }
 
 impl NFA {
-    pub fn new(node: Ast) -> Self {
+    pub fn new(node: impl AstNode) -> Self {
         let mut ret = NFA { start: INVALID_STATE_ID, accept: INVALID_STATE_ID, 
                 delta: NFATransition::new(), state_num: 0 };
-        node.assemble(&mut ret);
+        let p = node.assemble(&mut ret);
+        ret.start = p.start; ret.accept = p.accept;
         ret
     }
 

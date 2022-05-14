@@ -1,122 +1,118 @@
 use crate::lexer::Token;
 use crate::nfa::{NFA, NFAStatePair, TransitionChar};
 
-pub struct Ast {
-    pub expr: Box<Expr>
+pub trait AstNode {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair;
 }
 
-impl Ast {
-    pub fn assemble(&self, nfa: &mut NFA) {
-        self.expr.assemble(nfa);
-    }
+pub enum Expr {
+    SubExprBox(Box<SubExpr>)
 }
 
-pub struct Expr {
-    pub subexpr: Box<SubExpr>
-}
-
-impl Expr {
-    pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        self.subexpr.assemble(nfa);
-    }
-}
-
-
-pub struct SubExpr {
-    pub seq: Box<Seq>,
-    pub subexpr: Option<Box<SubExpr>>
-}
-
-impl SubExpr {
-    pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        let q = nfa.new_state();
-        let f = nfa.new_state();
-
-        let p1 = self.seq.assemble(nfa);
-        nfa.add_transition(q, p1.start, TransitionChar::EPS);
-        nfa.add_transition(p1.accept, f, TransitionChar::EPS);
-        if let Some(v) = self.subexpr {
-            let p2 = v.assemble(nfa);
-            nfa.add_transition(q, p2.start, TransitionChar::EPS);
-            nfa.add_transition(p2.accept, f, TransitionChar::EPS);
-        }
-
-        NFAStatePair { start: q, accept: f }
-    }
-}
-
-
-pub struct Seq {
-    pub subseq: Option<Box<SubSeq>>
-}
-
-impl Seq {
-    pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        match self.subseq {
-            Some(v) => {
-                let p1 = v.assemble(nfa);
-                return p1;
-            }
-            None => { // empty character
-                let q = nfa.new_state();
-                let f = nfa.new_state();
-                nfa.add_transition(q, f, TransitionChar::EPS);
-                return NFAStatePair { start: q, accept: f };
-            }
+impl AstNode for Expr {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
+        match self {
+            Self::SubExprBox(b) => b.assemble(nfa)
         }
     }
 }
 
-pub struct SubSeq {
-    pub rep: Box<Rep>,
-    pub subseq: Option<Box<SubSeq>>,
+
+pub enum SubExpr {
+    Union(Vec<Box<Seq>>)
 }
 
-impl SubSeq {
-    pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        let p1 = self.rep.assemble(nfa);
-        let q = p1.start;
-        let f;
-        
-        match self.subseq {
-            Some(v) => {
-                let p2 = v.assemble(nfa);
-                nfa.add_transition(p1.accept, p2.start, TransitionChar::EPS);
-                f = p2.accept;
-            }
-            None => {
-                f = p1.accept;
+impl AstNode for SubExpr {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
+        let new_start = nfa.new_state();
+        let new_accept = nfa.new_state();
+
+        match self {
+            Self::Union(v) => {
+                for s in v {
+                    let p = s.assemble(nfa);
+                    nfa.add_transition(new_start, p.start, TransitionChar::EPS);
+                    nfa.add_transition(p.accept, new_accept, TransitionChar::EPS);
+                }
             }
         }
 
-        NFAStatePair { start: q, accept: f }
+        NFAStatePair { start: new_start, accept: new_accept }
     }
 }
 
-pub struct Rep {
-    pub factor: Box<Factor>,
-    pub op: Option<Token>
+
+pub enum Seq {
+    Empty,
+    SubSeqBox(Box<SubSeq>)
+}
+
+impl AstNode for Seq {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
+        match self {
+            Self::Empty => {
+                let new_start = nfa.new_state();
+                let new_accept = nfa.new_state();
+                nfa.add_transition(new_start, new_accept, TransitionChar::EPS);
+                return NFAStatePair { start: new_start, accept: new_accept };
+            }
+            Self::SubSeqBox(b) => { return b.assemble(nfa); }
+        }
+    }
+}
+
+pub enum SubSeq {
+    Concat(Vec<Box<Rep>>)
+}
+
+impl AstNode for SubSeq {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
+        let new_start = nfa.new_state();
+        let new_accept = nfa.new_state();
+
+        match self {
+            Self::Concat(v) => {
+                let mut last_accept = new_start;
+                for r in v {
+                    let p = r.assemble(nfa);
+                    nfa.add_transition(last_accept, p.start, TransitionChar::EPS);
+                    last_accept = p.accept;
+                }
+                nfa.add_transition(last_accept, new_accept, TransitionChar::EPS);
+            }
+        }
+
+        NFAStatePair { start: new_start, accept: new_accept }
+    }
+}
+
+pub enum Rep {
+    SingleFactor(Box<Factor>),
+    RepeatFactor(Box<Factor>, Token),
+}
+
+impl AstNode for Rep {
+    fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
+        match self {
+            Self::SingleFactor(b) => {
+                return b.assemble(nfa);
+            } 
+            Self::RepeatFactor(b, t) => {
+                let p = b.assemble(nfa);
+                match t {
+                    Token::STAR => { return self.assemble_star(&p, nfa); }
+                    Token::PLUS => { return self.assemble_plus(&p, nfa); }
+                    Token::QUESTION => { return self.assemble_question(&p, nfa); }
+                    _ => { 
+                        unreachable!(); // error handling should be added later
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Rep {
-    pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        let p1 = self.factor.assemble(nfa);
-
-        match self.op {
-            Some(v) => {
-                match v {
-                    Token::STAR => { return self.assemble_star(&p1, nfa); }
-                    Token::PLUS => { return self.assemble_plus(&p1, nfa); }
-                    Token::QUESTION => { return self.assemble_question(&p1, nfa); }
-                    _ => {}
-                }
-            } 
-            None => {
-                return p1;
-            }
-        }
-    }
-
     fn assemble_star(&self, p: &NFAStatePair, nfa: &mut NFA) -> NFAStatePair {
         let q = nfa.new_state();
         let f = nfa.new_state();
@@ -152,13 +148,21 @@ impl Rep {
     }
 }
 
-pub struct Factor {
-    pub subexpr: Option<Box<SubExpr>>,
-    pub ch: Option<char>
+pub enum Factor {
+    BracketedSubExpr(Box<SubExpr>),
+    Character(char),
 }
 
 impl Factor {
     pub fn assemble(&self, nfa: &mut NFA) -> NFAStatePair {
-        
+        match self {
+            Self::BracketedSubExpr(b) => { b.assemble(nfa) }
+            Self::Character(c) => {
+                let q = nfa.new_state();
+                let f = nfa.new_state();
+                nfa.add_transition(q, f, TransitionChar::CHAR(*c));
+                NFAStatePair { start: q, accept: f } 
+            }
+        }
     }
 }
