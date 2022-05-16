@@ -1,6 +1,8 @@
 use crate::lexer::Token;
+use crate::lexer;
 use crate::ast::{Expr, SubExpr, SubSeq, Seq, Rep, Factor};
 
+#[derive(Debug)]
 pub enum ParseError {
     UnExpectedTokenError(Token, Token),
     UnMatchedTokenError(Token)
@@ -110,3 +112,5 @@ impl Parser {
         }
     }
 }
+
+

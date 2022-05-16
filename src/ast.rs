@@ -5,6 +5,7 @@ pub trait AstNode {
     fn assemble(&self, nfa: &mut NFA) -> NFAStatePair;
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     SubExprBox(Box<SubExpr>)
 }
@@ -17,7 +18,7 @@ impl AstNode for Expr {
     }
 }
 
-
+#[derive(Debug, PartialEq)]
 pub enum SubExpr {
     Union(Vec<Box<Seq>>)
 }
@@ -41,7 +42,7 @@ impl AstNode for SubExpr {
     }
 }
 
-
+#[derive(Debug, PartialEq)]
 pub enum Seq {
     Empty,
     SubSeqBox(Box<SubSeq>)
@@ -61,6 +62,7 @@ impl AstNode for Seq {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum SubSeq {
     Concat(Vec<Box<Rep>>)
 }
@@ -86,6 +88,7 @@ impl AstNode for SubSeq {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Rep {
     SingleFactor(Box<Factor>),
     RepeatFactor(Box<Factor>, Token),
@@ -148,6 +151,7 @@ impl Rep {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Factor {
     BracketedSubExpr(Box<SubExpr>),
     Character(char),

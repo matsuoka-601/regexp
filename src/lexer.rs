@@ -62,14 +62,16 @@ mod tests {
                         Token::UNION,
                         Token::CHARACTER('c'),
                         Token::RPAREN,
-                        Token::CHARACTER('d')]);
+                        Token::CHARACTER('d'),
+                        Token::EOF]);
 
         check_tokenize(r"\*\(\\a\\", 
                         vec![Token::CHARACTER('*'),
                             Token::CHARACTER('('),
                             Token::CHARACTER('\\'),
                             Token::CHARACTER('a'),
-                            Token::CHARACTER('\\')]);
+                            Token::CHARACTER('\\'),
+                            Token::EOF]);
         
         
     }

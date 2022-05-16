@@ -1,11 +1,9 @@
 use crate::ast::AstNode;
-use std::collections::{HashMap, BTreeSet};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct StateID(usize);
 pub const INVALID_STATE_ID: StateID = StateID(usize::MAX);
 
-#[derive(Eq, PartialEq, Hash)]
 pub enum TransitionChar {
     EPS,
     CHAR(char)
@@ -34,27 +32,46 @@ impl NFA {
     pub fn new_state(&mut self) -> StateID {
         let ret = self.state_num;
         self.state_num += 1;
+        self.delta.new_state();
         StateID(ret)
     }
 }
 
 
 pub struct NFATransition {
-    v: Vec<HashMap<TransitionChar, BTreeSet<StateID>>>
+    v: Vec<Vec<StateID>>
 }
 
 impl NFATransition {
-    pub fn new() -> Self {
+    fn new() -> Self {
         NFATransition { v: Vec::new() } 
     }
 
-    fn to_states(&self, from: StateID, ch: TransitionChar) -> &BTreeSet<StateID> {
-        &self.v[from.0][&ch]
+    fn to_states(&self, from: StateID, ch: TransitionChar) -> &Vec<StateID> {
+        let idx = self.ret_idx(from, ch);
+        &self.v[idx]
     }
 
     fn add_transition(&mut self, from: StateID, to: StateID, ch: TransitionChar) {
-        let mp = &mut self.v[from.0];
-        mp.get_mut(&ch).unwrap().insert(to);
+        let idx = self.ret_idx(from, ch);
+        self.v[idx].push(to);
+    }
+
+    // should this function be inlined? 
+    fn ret_char_id(&self, ch: TransitionChar) -> usize {
+        match ch {
+            TransitionChar::CHAR(c) => { c as usize }
+            TransitionChar::EPS => { 255 }
+        }
+    }
+
+    fn ret_idx(&self, from: StateID, ch: TransitionChar) -> usize {
+        let char_id = self.ret_char_id(ch);
+        256 * from.0 + char_id
+    }
+
+    fn new_state(&mut self) {
+        for _ in 0..256 { self.v.push(Vec::new()) }
     }
 }
 

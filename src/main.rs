@@ -9,7 +9,7 @@ fn main() {
     let mut p = parser::Parser::new(tokens);
     let ast = p.parse();
 
-    let nfa = nfa::NFA::new(ast);
+    // let nfa = nfa::NFA::new(ast);
 
     // println!("{:?}", l.tokenize());
     // println!("{:?}", &args[1]);
