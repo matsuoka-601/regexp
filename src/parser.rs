@@ -114,3 +114,106 @@ impl Parser {
 }
 
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test(){
+        check_parse("ab|c", 
+        "SubExprBox(
+            Union(
+                [
+                    SubSeqBox(
+                        Concat(
+                            [
+                                SingleFactor(Character('a')),
+                                SingleFactor(Character('b'))
+                            ]
+                        )
+                    ),
+                    SubSeqBox(
+                        Concat(
+                            [
+                                SingleFactor(Character('c'))
+                            ]
+                        )
+                    )
+                ]
+            )
+        )");
+
+        check_parse("a+(b|c)*", 
+        "SubExprBox(
+            Union(
+                [
+                    SubSeqBox(
+                        Concat(
+                            [
+                                RepeatFactor(Character('a'), PLUS),
+                                RepeatFactor(
+                                    BracketedSubExpr(
+                                        Union(
+                                            [
+                                                SubSeqBox(
+                                                    Concat([SingleFactor(Character('b'))])
+                                                ),
+                                                SubSeqBox(
+                                                    Concat([SingleFactor(Character('c'))])
+                                                )
+                                            ]
+                                        )
+                                    )
+                                , STAR)
+                            ]
+                        )
+                    )
+                ]
+            )
+        )");
+
+        check_parse("a+(b||)*", 
+        "SubExprBox(
+            Union(
+                [
+                    SubSeqBox(
+                        Concat(
+                            [
+                                RepeatFactor(Character('a'), PLUS),
+                                RepeatFactor(
+                                    BracketedSubExpr(
+                                        Union(
+                                            [
+                                                SubSeqBox(
+                                                    Concat([SingleFactor(Character('b'))])
+                                                ),
+                                                Empty,
+                                                Empty
+                                            ]
+                                        )
+                                    )
+                                , STAR)
+                            ]
+                        )
+                    )
+                ]
+            )
+        )");
+    }
+
+    fn check_parse(input: &str, ans: &str) {
+        let l = lexer::Lexer::new(input);
+        let mut p = Parser::new(l.tokenize());
+        let ret = p.parse().unwrap();
+        let s1 = normalize_str(format!("{:?}", ret).as_str());
+        let s2 = normalize_str(ans);
+        assert_eq!(s1, s2);
+    }
+
+    fn normalize_str(input: &str) -> String {
+        let mut s = input.replace("\n", "");
+        s = s.replace("\t", "");
+        s = s.replace(" ", "");
+        s
+    }
+}
