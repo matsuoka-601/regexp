@@ -1,5 +1,4 @@
 use crate::lexer::Token;
-use crate::lexer;
 use crate::ast::{Expr, SubExpr, SubSeq, Seq, Rep, Factor};
 
 #[derive(Debug)]
@@ -117,6 +116,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer;
 
     #[test]
     fn test(){
@@ -199,6 +199,8 @@ mod tests {
                 ]
             )
         )");
+
+        check_parse("", "SubExprBox(Union([Empty]))")
     }
 
     fn check_parse(input: &str, ans: &str) {
