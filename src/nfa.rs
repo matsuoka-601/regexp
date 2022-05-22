@@ -27,6 +27,27 @@ impl NFA {
         ret
     }
 
+    pub fn match_str(&self, s: &str) -> bool {
+        let mut cur_states = HashSet::new();
+        self.expand(self.start, &mut cur_states);
+        for c in s.chars() {
+            let mut tmp_visited = HashSet::new();
+            for cur_state in cur_states.into_iter() {
+                for to_state in self.delta.to_states(cur_state, TransitionChar::CHAR(c)).into_iter() {
+                    tmp_visited.insert(*to_state);
+                }
+            }
+            cur_states = tmp_visited;
+        }
+
+        for state in cur_states.into_iter() {
+            if state == self.accept { 
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn add_transition(&mut self, from: StateID, to: StateID, ch: TransitionChar) {
         self.delta.add_transition(from, to, ch);
     }
@@ -53,7 +74,12 @@ impl NFA {
     }
 
     fn expand(&self, cur_state: StateID, visited: &mut HashSet<StateID>) {
-        
+        visited.insert(cur_state);
+        for to_state in self.delta.to_states(cur_state, TransitionChar::EPS) {
+            if !visited.contains(&to_state) {
+                self.expand(*to_state, visited);
+            }
+        }
     }
 }
 
@@ -126,36 +152,41 @@ mod tests {
     #[test]
     fn test(){
         // check_nfa("a");
-        // check_nfa("abc");
-        // check_nfa("a|b");
-        check_nfa("a*");
-        check_nfa("");
-        check_nfa("a*(b|c)d");
+        check_nfa("abc", "abc", true);
+        check_nfa("abc", "ab", false);
+        check_nfa("a|b", "a", true);
+        check_nfa("a|b", "b", true);
+        check_nfa("a|b", "c", false);
+        check_nfa("a*", "aaaa", true);
+        check_nfa("a*", "aaab", false);
+        check_nfa("", "", true);
+        check_nfa("", "a", false);
+        check_nfa("a*(b|c)d", "aaacd", true);
+        check_nfa("a*(b|c)d", "aaaaaaabd", true);
+        check_nfa("a*(b|c)d", "aaaaaaabcd", false);
+        check_nfa("a?a?a?a?a?a?aaaaaa", "aaaaaa", true);
+        check_nfa("a?a?a?a?a?a?aaaaaa", "aaaaa", false);
     }
 
-    fn check_nfa(input: &str) {
-        let l = lexer::Lexer::new(input);
+    fn check_nfa(pattern: &str, input: &str, matches: bool) {
+        let l = lexer::Lexer::new(pattern);
         let tokens = l.tokenize();
     
         let mut p = parser::Parser::new(tokens);
         let ast = p.parse().unwrap();
 
         let nfa = NFA::new(ast);
-        println!("state_num:{:?}, start:{:?}, accept:{:?}", nfa.delta.state_num, nfa.start, nfa.accept);
-        show_delta(nfa.delta);
-        println!("");
+        assert_eq!(nfa.match_str(input), matches);
     }
 
-    fn show_delta(delta: NFATransition) { // a bit dirty...
+    fn show_delta(delta: NFATransition) { 
         for i in 0..delta.state_num {
             println!("{:?}", i);
-            for j in 0..256 {
-                let idx = i * 256 + j;
-                if delta.v[idx].len() > 0 {
-                    if j as u8 == EPS_ID { println!("ε:{:?}", delta.v[idx]); }
-                    else { println!("{}:{:?}", (j as u8) as char, delta.v[idx]); }
-                }
+            let st = StateID(i);
+            for c in delta.transition_char_iter(st) {
+                println!("{:?}:{:?}", c, delta.to_states(st, c));
             }
+            println!("{:?}:{:?}", TransitionChar::EPS, delta.to_states(st, TransitionChar::EPS));
         }
     }
 }
