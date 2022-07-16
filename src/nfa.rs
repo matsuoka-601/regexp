@@ -151,7 +151,6 @@ mod tests {
 
     #[test]
     fn test(){
-        // check_nfa("a");
         check_nfa("abc", "abc", true);
         check_nfa("abc", "ab", false);
         check_nfa("a|b", "a", true);
@@ -166,9 +165,14 @@ mod tests {
         check_nfa("a*(b|c)d", "aaaaaaabcd", false);
         check_nfa("a?a?a?a?a?a?aaaaaa", "aaaaaa", true);
         check_nfa("a?a?a?a?a?a?aaaaaa", "aaaaa", false);
+        check_nfa("(a|b|c|d|e)(a|b|c|d|e)", "ab", true);
+        check_nfa("(a|b|c|d|e)(a|b|c|d|e)", "af", false);
+        check_nfa("(ab)*", "abababababababababab", true);
+        check_nfa("(ab)+", "abababababababababab", true);
+        check_nfa("(ab)?", "abababababababababab", false);
     }
 
-    fn check_nfa(pattern: &str, input: &str, matches: bool) {
+    fn check_nfa(pattern: &str, input: &str, ans: bool) {
         let l = lexer::Lexer::new(pattern);
         let tokens = l.tokenize();
     
@@ -176,7 +180,7 @@ mod tests {
         let ast = p.parse().unwrap();
 
         let nfa = NFA::new(ast);
-        assert_eq!(nfa.match_str(input), matches);
+        assert_eq!(nfa.match_str(input), ans);
     }
 
     fn show_delta(delta: NFATransition) { 
